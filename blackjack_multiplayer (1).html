@@ -105,7 +105,7 @@ hr{border:0;border-top:1px solid #315a43;margin:16px 0}
   </div>
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 let peer, host=false, myId='', roomId='', myName='', conn=null, state=null, hostConns={};
 
@@ -143,7 +143,7 @@ function createRoom(){
       name:myName,
       hand:[],
       done:false,
-      ready:false
+      ready:true
     };
     showGame();
     log('החדר נוצר. אתה הדילר.');
@@ -174,7 +174,8 @@ function createRoom(){
     c.on('data',m=>handleHost(c,m));
   });
 
-  peer.on('error',()=>alert('אירעה בעיית חיבור. נסה ליצור חדר חדש.'));
+  peer.on('error',(err)=>{ console.error('PeerJS error:',err); document.getElementById('connection').textContent='שגיאת חיבור: '+(err?.type||'לא ידועה'); alert('לא הצלחנו להתחבר לשירות המשחק. נסה לרענן את הדף וליצור חדר חדש.'); });
+  peer.on('disconnected',()=>{ document.getElementById('connection').textContent='החיבור נותק'; });
 }
 
 function joinRoom(){
@@ -200,9 +201,7 @@ function joinRoom(){
     conn.on('data',m=>handleClient(m));
   });
 
-  peer.on('error',()=>{
-    alert('לא ניתן להתחבר לחדר. בדוק את הקוד ונסה שוב.');
-  });
+  peer.on('error',(err)=>{ console.error('PeerJS error:',err); document.getElementById('connection').textContent='שגיאת חיבור'; alert('לא ניתן להתחבר לחדר. בדוק את הקוד ונסה שוב.'); });
 }
 
 function showGame(){
