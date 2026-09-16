@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blackjack Club — Multiplayer</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:radial-gradient(circle at top,#16452f,#07130e 60%);color:#fff;min-height:100vh}
+.wrap{max-width:1150px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}
+h1{margin:0;font-size:30px}.sub{color:#b9d7c5}.card{background:rgba(8,20,14,.88);border:1px solid #315a43;border-radius:20px;padding:20px;box-shadow:0 15px 50px #0006;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}@media(max-width:800px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+label{display:block;margin:10px 0 6px;color:#cfe7d7}input,select{width:100%;padding:13px;border-radius:11px;border:1px solid #466b54;background:#10251a;color:#fff;font-size:16px}
+button{border:0;border-radius:12px;padding:12px 17px;font-weight:700;cursor:pointer;background:#e7bd55;color:#171208;margin:4px}button:hover{filter:brightness(1.08)}button.secondary{background:#234e38;color:#fff}button.danger{background:#a83d3d;color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.hidden{display:none!important}
+.room{font-size:25px;letter-spacing:4px;background:#0a1b12;border:1px dashed #6e9b7e;border-radius:12px;padding:10px 14px;display:inline-block}
+.status{padding:9px 12px;border-radius:10px;background:#183b29;color:#c9efd5;margin-top:10px}
+.players{display:grid;gap:8px}.player{display:flex;justify-content:space-between;padding:11px;border-radius:10px;background:#10251a;border:1px solid #284b37}
+.table{min-height:360px;border-radius:28px;padding:25px;background:radial-gradient(ellipse,#197044,#0a432a 60%,#06301e);border:8px solid #553a22;box-shadow:inset 0 0 60px #0008,0 20px 60px #0007}
+.hand{display:flex;justify-content:center;gap:8px;min-height:92px;flex-wrap:wrap}.playing-card{width:58px;height:82px;border-radius:8px;background:#fff;color:#111;display:flex;flex-direction:column;justify-content:space-between;padding:6px;font-weight:800;box-shadow:0 5px 10px #0005}.red{color:#c62828}.back{background:repeating-linear-gradient(45deg,#1f4f9b,#1f4f9b 5px,#fff 5px,#fff 7px);color:transparent}
+.center{text-align:center}.total{font-size:18px;margin:7px}.money{font-size:22px;color:#f2cf68;font-weight:800}.actions{display:flex;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.small{font-size:13px;color:#9eb9a8}.log{height:150px;overflow:auto;background:#07150d;border-radius:10px;padding:10px;font-size:13px}
+hr{border:0;border-top:1px solid #315a43;margin:16px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>♠ Blackjack Club</h1><div class="sub">שולחן בלקג'ק פרטי — עם צ'יפים וירטואליים בלבד</div></div>
+    <div id="connection" class="status">מתחבר...</div>
+  </div>
+
+  <div id="setup" class="card">
+    <h2>פתיחת שולחן חדש</h2>
+    <div class="grid">
+      <div>
+        <label>השם שלך</label><input id="hostName" maxlength="18" placeholder="למשל Amit">
+        <label>כמה צ'יפים וירטואליים לכל שחקן?</label>
+        <input id="startMoney" type="number" min="10" step="10" value="1000">
+      </div>
+      <div>
+        <label>מקסימום הימור לסיבוב</label>
+        <input id="maxBet" type="number" min="1" step="10" value="200">
+        <label>מינימום הימור</label>
+        <input id="minBet" type="number" min="1" step="10" value="10">
+      </div>
+    </div>
+    <button onclick="createRoom()">🎰 צור שולחן ודילר</button>
+    <hr>
+    <h2>הצטרפות לשולחן</h2>
+    <label>שם</label><input id="joinName" maxlength="18" placeholder="השם שלך">
+    <label>קוד חדר</label><input id="roomCode" maxlength="8" placeholder="למשל A7K2P9">
+    <button class="secondary" onclick="joinRoom()">הצטרף לחדר</button>
+    <p class="small">שלחו לחברים את קוד החדר. מי שפתח את החדר הוא הדילר.</p>
+  </div>
+
+  <div id="game" class="hidden">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="row"><b>קוד חדר:</b><span id="code" class="room"></span><button class="secondary" onclick="copyRoom()">העתק</button></div>
+          <div id="role" class="status"></div>
+          <div id="gameStatus" class="status">ממתינים...</div>
+        </div>
+        <div class="card">
+          <h3>שחקנים</h3><div id="players" class="players"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>לוג</h3><div id="log" class="log"></div>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="center"><h2>בית / דילר</h2><div id="dealerHand" class="hand"></div><div id="dealerTotal" class="total"></div></div>
+      <hr>
+      <div class="center"><h2>השחקן שלך</h2><div id="myHand" class="hand"></div><div id="myTotal" class="total"></div><div id="myMoney" class="money"></div></div>
+      <div id="betArea" class="center"></div>
+      <div id="actions" class="actions"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+let peer, host=false, myId='', roomId='', myName='', conn=null, state=null, timer=null, hostConns={};
+const suits=['♠','♥','♦','♣'], ranks=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+function log(t){let e=document.getElementById('log');e.innerHTML='<div>'+new Date().toLocaleTimeString('he-IL')+' — '+t+'</div>'+e.innerHTML}
+function rid(){return Math.random().toString(36).slice(2,8).toUpperCase()}
+function createRoom(){
+  myName=document.getElementById('hostName').value.trim()||'הדילר';
+  const start=+document.getElementById('startMoney').value||1000, max=+document.getElementById('maxBet').value||200, min=+document.getElementById('minBet').value||10;
+  if(min>max){alert('המינימום לא יכול להיות גדול מהמקסימום');return}
+  roomId=rid(); host=true; state={maxBet:max,minBet:min,startMoney:start,phase:'betting',deck:[],dealer:[],players:{},turn:null,round:0};
+  peer=new Peer('bj-'+roomId,{debug:0});
+  peer.on('open',()=>{myId=peer.id;state.players[myId]={name:myName,money:start,hand:[],bet:0,done:false};showGame();log('החדר נוצר. אתה הדילר.')});
+  peer.on('connection',c=>{hostConns[c.peer]=c;c.on('open',()=>{state.players[c.peer]={name:'שחקן',money:state.startMoney,hand:[],bet:0,done:false};c.send({type:'state',state});broadcast();log('שחקן חדש הצטרף')});c.on('close',()=>{delete hostConns[c.peer]});c.on('data',m=>handleHost(c,m));});
+}
+function joinRoom(){
+  myName=document.getElementById('joinName').value.trim()||'שחקן';
+  roomId=document.getElementById('roomCode').value.trim().toUpperCase();
+  if(!roomId){alert('הכנס קוד חדר');return}
+  host=false; peer=new Peer({debug:0});
+  peer.on('open',id=>{myId=id;conn=peer.connect('bj-'+roomId);conn.on('open',()=>{conn.send({type:'join',name:myName})});conn.on('data',m=>handleClient(m));});
+  peer.on('error',e=>alert('לא ניתן להתחבר לחדר. בדוק את הקוד.'));
+}
+function showGame(){document.getElementById('setup').classList.add('hidden');document.getElementById('game').classList.remove('hidden');document.getElementById('code').textContent=roomId;document.getElementById('connection').textContent='מחובר';render()}
+function handleHost(c,m){
+  if(m.type==='join'){state.players[c.peer]={name:m.name,money:state.startMoney,hand:[],bet:0,done:false}; c.send({type:'state',state});broadcast();return}
+  if(m.type==='bet'){let p=state.players[c.peer]; if(state.phase==='betting'&&p&&m.amount>=state.minBet&&m.amount<=state.maxBet&&m.amount<=p.money){p.bet=m.amount;p.done=true;broadcast();maybeDeal()} }
+  if(m.type==='action'){if(state.phase==='playing'&&state.turn===c.peer) doAction(c.peer,m.action)}
+  if(m.type==='newRound'){if(state.phase==='finished'){startRound();}}
+}
+function handleClient(m){
+  if(m.type==='state'){state=m.state;showGame()}
+  if(m.type==='room'){state=m.state;render()}
+}
+function broadcast(){Object.entries(hostConns).forEach(([id,c])=>{try{if(c.open)c.send({type:'room',state})}catch(e){}});render()}
+function deck(){let d=[];for(const s of suits)for(const r of ranks)d.push({s,r});return d.sort(()=>Math.random()-.5)}
+function val(hand){let n=0,a=0;hand.forEach(c=>{if(c.r==='A'){n+=11;a++}else n+=['K','Q','J'].includes(c.r)?10:+c.r});while(n>21&&a--)n-=10;return n}
+function allPlayersBet(){return Object.values(state.players).every(p=>p.bet>0)}
+function maybeDeal(){if(!allPlayersBet())return;state.phase='playing';state.deck=deck();state.dealer=[state.deck.pop(),state.deck.pop()];let ids=Object.keys(state.players);ids.forEach(id=>{let p=state.players[id];p.hand=[state.deck.pop(),state.deck.pop()];p.done=false});state.turn=ids[0];broadcast();checkTurn()}
+function startRound(){state.round++;state.phase='betting';state.deck=[];state.dealer=[];state.turn=null;Object.values(state.players).forEach(p=>{p.hand=[];p.bet=0;p.done=false});broadcast()}
+function doAction(id,a){
+ let p=state.players[id];if(!p)return;
+ if(a==='hit'){p.hand.push(state.deck.pop());if(val(p.hand)>=21)p.done=true}
+ if(a==='stand')p.done=true;
+ if(a==='double'&&p.money>=p.bet&&p.hand.length===2&&state.deck.length){p.money-=p.bet;p.bet*=2;p.hand.push(state.deck.pop());p.done=true}
+ nextTurn();
+}
+function nextTurn(){let ids=Object.keys(state.players),i=ids.indexOf(state.turn),next=ids.slice(i+1).find(id=>!state.players[id].done);if(next)state.turn=next;else{state.turn=null;dealerPlay()}broadcast()}
+function checkTurn(){let p=state.players[state.turn];if(p&&val(p.hand)>=21)nextTurn()}
+function dealerPlay(){state.phase='dealer';while(val(state.dealer)<17)state.dealer.push(state.deck.pop());Object.values(state.players).forEach(p=>{let pv=val(p.hand),dv=val(state.dealer);if(pv>21)p.money-=p.bet;else if(dv>21||pv>dv)p.money+=p.bet;else if(pv===dv){}else p.money-=p.bet});state.phase='finished';broadcast()}
+function render(){
+ if(!state)return;showGame();
+ document.getElementById('role').textContent=host?'👑 אתה הדילר (הבית)':'🎮 אתה שחקן';
+ document.getElementById('gameStatus').textContent=state.phase==='betting'?`הימור: ₪${state.minBet}–₪${state.maxBet}`:state.phase==='playing'?'השחקנים משחקים':state.phase==='dealer'?'הדילר פועל...':'הסיבוב הסתיים';
+ document.getElementById('players').innerHTML=Object.entries(state.players).map(([id,p])=>`<div class="player"><span>${id===myId?'⭐ ':''}${esc(p.name)} ${id===myId?'(אתה)':''}</span><span>₪${p.money} ${p.bet?' · הימור ₪'+p.bet:''}</span></div>`).join('');
+ const me=state.players[myId]; if(!me)return;
+ document.getElementById('dealerHand').innerHTML=state.dealer.map((c,i)=>card(c,(i===1&&state.phase==='playing'))).join('');
+ document.getElementById('dealerTotal').textContent=(state.phase==='playing')?'קלף נסתר':('סה״כ: '+val(state.dealer));
+ document.getElementById('myHand').innerHTML=me.hand.map(c=>card(c,false)).join('');
+ document.getElementById('myTotal').textContent=me.hand.length?'סה״כ: '+val(me.hand):'';
+ document.getElementById('myMoney').textContent='₪'+me.money+' צ׳יפים וירטואליים';
+ let b=document.getElementById('betArea'),a=document.getElementById('actions');b.innerHTML='';a.innerHTML='';
+ if(!host&&state.phase==='betting'&&!me.bet){b.innerHTML=`<label>ההימור שלך</label><input id="bet" type="number" min="${state.minBet}" max="${Math.min(state.maxBet,me.money)}" value="${Math.min(state.minBet,me.money)}"><button onclick="bet()">המר</button>`}
+ if(!host&&state.phase==='playing'&&state.turn===myId&&!me.done){a.innerHTML='<button onclick="act(\\'hit\\')">קלף</button><button onclick="act(\\'stand\\')" class="secondary">עמוד</button>'+(me.money>=me.bet&&me.hand.length===2?'<button onclick="act(\\'double\\')">הכפל</button>':'')}
+ if(!host&&state.phase==='finished')a.innerHTML='<button onclick="newRound()">סיבוב חדש</button>';
+ if(host){a.innerHTML=state.phase==='finished'?'<button onclick="startHostRound()">סיבוב חדש</button>':'<span class="small">הדילר מנהל את השולחן</span>'}
+}
+function card(c,hidden){if(hidden)return '<div class="playing-card back">?</div>';let red=(c.s==='♥'||c.s==='♦')?'red':'';return `<div class="playing-card ${red}"><span>${c.r}</span><span>${c.s}</span></div>`}
+function bet(){let n=+document.getElementById('bet').value;if(conn)conn.send({type:'bet',amount:n})}
+function act(x){if(conn)conn.send({type:'action',action:x})}
+function newRound(){if(conn)conn.send({type:'newRound'})}
+function startHostRound(){startRound()}
+function copyRoom(){navigator.clipboard?.writeText(roomId);alert('קוד החדר הועתק')}
+function esc(s){return String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[x]))}
+showGame=function(){document.getElementById('setup').classList.add('hidden');document.getElementById('game').classList.remove('hidden');document.getElementById('code').textContent=roomId;document.getElementById('connection').textContent='מחובר';render()};
+</script>
+</body>
+</html>
